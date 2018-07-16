@@ -15,15 +15,15 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
-Mytools mytools;
-bool no_person;
+__declspec(thread)Mytools mytools;
+__declspec(thread)bool no_person;
 
 struct RevInfo {
 	int height;
 	int width;
 	UINT pBuffer_size;
 	SYSTEMTIME st;
-}rinfo;
+};
 
 bool RecvAll(SOCKET &sock, char*buffer, int size)
 {
@@ -37,6 +37,21 @@ bool RecvAll(SOCKET &sock, char*buffer, int size)
 	}
 	return true;
 }
+__declspec(thread)RevInfo rinfo;
+__declspec(thread)UINT16 pBuffer[217088];
+__declspec(thread)BYTE pBuffer_color[8294400];
+__declspec(thread)BYTE pBuffer_bodyindex[217088];
+__declspec(thread)Mat depthImg;
+__declspec(thread)Mat colorImg;
+__declspec(thread)Mat bodyindexImg;
+__declspec(thread)Mat erodeelement;
+__declspec(thread)Mat dilateelement;
+__declspec(thread)BOOL resdepth;
+__declspec(thread)BOOL rescolor;
+__declspec(thread)BOOL resbodyindex;
+__declspec(thread)int erosion_size;
+__declspec(thread)int dilation_size;
+__declspec(thread)int ret_val;
 
 
 #define SERVER_PORT 4999
@@ -132,9 +147,7 @@ void Server::WaitForClient()
 
 DWORD WINAPI CreateClientThread(LPVOID lpParameter)
 {
-	UINT16* pBuffer = new UINT16[217088];
-	BYTE* pBuffer_color = new BYTE[8294400];
-	BYTE* pBuffer_bodyindex = new BYTE[217088];
+
 	SOCKET sock_clt = (SOCKET)lpParameter;
 	while (true)
 	{
@@ -212,9 +225,7 @@ DWORD WINAPI CreateClientThread(LPVOID lpParameter)
 #pragma endregion
 		Sleep(300);
 	}
-	delete[] pBuffer;
-	delete[] pBuffer_color;
-	delete[] pBuffer_bodyindex;
+	
 
 	int ret_val = ::shutdown(sock_clt, SD_SEND);
 	if (ret_val == SOCKET_ERROR)

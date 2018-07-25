@@ -13,12 +13,14 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::flush;
+using std::string;
 using cv::Mat;
 using cv::waitKey;
 #pragma endregion
 
 const char DEFAULT_PORT[] = "4999";
 const int SEND_BUF_SIZE = 256;
+const int RECV_BUF_SIZE = 256;
 
 struct SendInfo {
 	int height;
@@ -103,84 +105,93 @@ int main() {
 		return 1;
 	}
 	cout << "connect server successfully..." << endl;
-	cout << "start to send data..." << endl;
+	cout << "start to receive instruction ..." << endl;
 	freeaddrinfo(result);
+
+	std::string Recv;
+	memset(&Recv, 0, sizeof(Recv)); //清空结构体
+	recv(sock_client, (char*)&Recv, sizeof(Recv), 0);
+	cout << "接收到指令：" << Recv << endl;
+	cout << "开始发送数据" << endl;
 #pragma endregion
 
 	while (true)
 	{
-#pragma region 获取图像
+#pragma region 声明
 		IDepthFrame*       pDepthFrame = NULL;
 		IColorFrame*       pColorFrame = NULL;
 		IBodyIndexFrame*   pBodyIndexFrame = NULL;
-		//获取深度图像
-		while (pDepthFrame == NULL) {
-			//由于有时候获取不到，因此循环获取最近的帧
-			m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
+		string::size_type B_idx = Recv.find("B");
+		string::size_type C_idx = Recv.find("C");
+		string::size_type D_idx = Recv.find("D");
+#pragma endregion
+		if (D_idx != string::npos)
+		{
+#pragma region 获取并发送深度数据
+			while (pDepthFrame == NULL) {
+				//由于有时候获取不到，因此循环获取最近的帧
+				m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
+			}
+			pDepthFrame->get_FrameDescription(&depthFrameDescription); //获取帧的像素信息（宽和高）
+			memset(&sinfo, 0, sizeof(sinfo)); //清空结构体
+			depthFrameDescription->get_Width(&sinfo.width);
+			depthFrameDescription->get_Height(&sinfo.height);
+			UINT16 *pBuffer_depth = NULL;
+			//获取图像像素个数和指向图像的指针
+			pDepthFrame->AccessUnderlyingBuffer(&sinfo.pBuffer_size, &pBuffer_depth);
+			send(sock_client, (char*)&sinfo, sizeof(sinfo), 0);
+			int resdepth = send(sock_client, (char*)pBuffer_depth, sinfo.pBuffer_size, 0);
+			std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << resdepth << std::endl;
+			if (waitKey(33) == VK_ESCAPE) break;
+			pDepthFrame->Release();
+#pragma endregion
 		}
-		//获取彩色图像
-		while (pColorFrame == NULL) {
-			//由于有时候获取不到，因此循环获取最近的帧
-			m_pColorFrameReader->AcquireLatestFrame(&pColorFrame);
+		if (C_idx != string::npos)
+		{
+#pragma region 获取并发送彩色数据
+			while (pColorFrame == NULL) {
+				//由于有时候获取不到，因此循环获取最近的帧
+				m_pColorFrameReader->AcquireLatestFrame(&pColorFrame);
+			}
+			pColorFrame->get_FrameDescription(&colorFrameDescription);
+			memset(&sinfo, 0, sizeof(sinfo)); //清空结构体
+			colorFrameDescription->get_Width(&sinfo.width);
+			colorFrameDescription->get_Height(&sinfo.height);
+			uchar *pBuffer_color = NULL;
+			//获取图像像素个数和指向图像的指针
+			pColorFrame->get_RawColorImageFormat(&imageFormat);
+			Mat colorImg(sinfo.height, sinfo.width, CV_8UC4);
+			pBuffer_color = colorImg.data;
+			sinfo.pBuffer_size = colorImg.rows*colorImg.step;
+			pColorFrame->CopyConvertedFrameDataToArray(sinfo.pBuffer_size, reinterpret_cast<BYTE*>(pBuffer_color), ColorImageFormat_Bgra);
+			send(sock_client, (char*)&sinfo, sizeof(sinfo), 0);
+			int rescolor = send(sock_client, (char*)pBuffer_color, sinfo.pBuffer_size, 0);
+			std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << rescolor << std::endl;
+			if (waitKey(33) == VK_ESCAPE) break;
+			pColorFrame->Release();
+#pragma endregion
 		}
-		//获取人体索引
-		while (pBodyIndexFrame == NULL) {
-			//不想说第三遍了
-			m_pBodyIndexFrameReader->AcquireLatestFrame(&pBodyIndexFrame);
+		if (B_idx != string::npos)
+		{
+#pragma region 获取并发送人体索引数据
+			while (pBodyIndexFrame == NULL) {
+				//不想说第三遍了
+				m_pBodyIndexFrameReader->AcquireLatestFrame(&pBodyIndexFrame);
+			}
+			pBodyIndexFrame->get_FrameDescription(&bodyIndexFrameDescription);
+			memset(&sinfo, 0, sizeof(sinfo)); //清空结构体
+			bodyIndexFrameDescription->get_Width(&sinfo.width);
+			bodyIndexFrameDescription->get_Height(&sinfo.height);
+			BYTE *pBuffer_bodyIndex = NULL;
+			pBodyIndexFrame->AccessUnderlyingBuffer(&sinfo.pBuffer_size, &pBuffer_bodyIndex);
+			send(sock_client, (char*)&sinfo, sizeof(sinfo), 0);
+			int resbodyindex = send(sock_client, (char*)pBuffer_bodyIndex, sinfo.pBuffer_size, 0);
+			std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << resbodyindex << std::endl;
+			if (waitKey(33) == VK_ESCAPE) break;
+			pBodyIndexFrame->Release();
+#pragma endregion
 		}
-#pragma endregion
 
-#pragma region 发送深度数据
-		pDepthFrame->get_FrameDescription(&depthFrameDescription); //获取帧的像素信息（宽和高）
-		memset(&sinfo, 0, sizeof(sinfo)); //清空结构体
-		depthFrameDescription->get_Width(&sinfo.width);
-		depthFrameDescription->get_Height(&sinfo.height);
-		UINT16 *pBuffer_depth = NULL;
-		//获取图像像素个数和指向图像的指针
-		pDepthFrame->AccessUnderlyingBuffer(&sinfo.pBuffer_size, &pBuffer_depth);
-		send(sock_client, (char*)&sinfo, sizeof(sinfo), 0);
-		int resdepth = send(sock_client, (char*)pBuffer_depth, sinfo.pBuffer_size, 0);
-		std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << resdepth << std::endl;
-		if (waitKey(33) == VK_ESCAPE) break;
-		pDepthFrame->Release();
-#pragma endregion
-
-
-#pragma region 发送彩色数据
-		pColorFrame->get_FrameDescription(&colorFrameDescription);
-		memset(&sinfo, 0, sizeof(sinfo)); //清空结构体
-		colorFrameDescription->get_Width(&sinfo.width);
-		colorFrameDescription->get_Height(&sinfo.height);
-		uchar *pBuffer_color = NULL;
-		//获取图像像素个数和指向图像的指针
-		pColorFrame->get_RawColorImageFormat(&imageFormat);
-		Mat colorImg(sinfo.height, sinfo.width, CV_8UC4);
-		pBuffer_color = colorImg.data;
-		sinfo.pBuffer_size = colorImg.rows*colorImg.step;
-		pColorFrame->CopyConvertedFrameDataToArray(sinfo.pBuffer_size, reinterpret_cast<BYTE*>(pBuffer_color), ColorImageFormat_Bgra);
-		send(sock_client, (char*)&sinfo, sizeof(sinfo), 0);
-		int rescolor = send(sock_client, (char*)pBuffer_color, sinfo.pBuffer_size, 0);
-		std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << rescolor << std::endl;
-		if (waitKey(33) == VK_ESCAPE) break;
-		pColorFrame->Release();
-
-#pragma endregion
-
-#pragma region 发送人体索引数据
-		pBodyIndexFrame->get_FrameDescription(&bodyIndexFrameDescription);
-		memset(&sinfo, 0, sizeof(sinfo)); //清空结构体
-		bodyIndexFrameDescription->get_Width(&sinfo.width);
-		bodyIndexFrameDescription->get_Height(&sinfo.height);
-		BYTE *pBuffer_bodyIndex = NULL;
-		pBodyIndexFrame->AccessUnderlyingBuffer(&sinfo.pBuffer_size, &pBuffer_bodyIndex);
-		send(sock_client, (char*)&sinfo, sizeof(sinfo), 0);
-		int resbodyindex = send(sock_client, (char*)pBuffer_bodyIndex, sinfo.pBuffer_size, 0);
-		std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << resbodyindex << std::endl;
-		if (waitKey(33) == VK_ESCAPE) break;
-		pBodyIndexFrame->Release();
-#pragma endregion
-
-		Sleep(300);
 	}
 	if (m_pKinectSensor)
 	{

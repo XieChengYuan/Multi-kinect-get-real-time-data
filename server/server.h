@@ -1,6 +1,8 @@
 #pragma once
 #include <Winsock2.h>
 #include <windows.h>
+#include <iostream>
+#include<string>
 
 #pragma comment (lib, "ws2_32.lib")
 
@@ -8,12 +10,14 @@
 
 class Server
 {
+
 public:
 	Server();
 	~Server();
 	Server(const Server &) = delete;
 	Server & operator=(const Server &) = delete;
-	void WaitForClient();
+	void WaitForClient(std::string data);
+	std::string inData;
 private:
 	WORD winsock_ver;
 	WSADATA wsa_data;

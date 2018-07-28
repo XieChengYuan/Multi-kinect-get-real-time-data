@@ -1,12 +1,8 @@
 #include "server.h"
 #include <iostream>
 #include <WS2tcpip.h>
-#include <opencv2/opencv.hpp>
-#include "opencv2/highgui.hpp"
-#include <Kinect.h> 
-#include <windows.h>  
-#include"Mytools.h"
 #include <process.h>
+#include"Mytools.h"
 #pragma comment(lib, "ws2_32.lib")  
 
 using cv::Mat;
@@ -17,16 +13,12 @@ using std::cout;
 using std::endl;
 using std::string;
 
+
+#define SERVER_PORT 4999
+#define MSG_BUF_SIZE 1024
+
 __declspec(thread)Mytools mytools;
 __declspec(thread)bool no_person;
-
-
-struct threadArg {
-	SOCKET sock_clt;
-	SOCKET sock_svr;
-	std::string which_data;
-};
-
 
 struct RevInfo {
 	int height;
@@ -37,7 +29,7 @@ struct RevInfo {
 
 bool RecvAll(SOCKET &sock, char*buffer, int size)
 {
-	while (size > 0)//剩余部分大于0
+	while (size>0)//剩余部分大于0
 	{
 		int RecvSize = recv(sock, buffer, size, 0);
 		if (SOCKET_ERROR == RecvSize)
@@ -47,8 +39,7 @@ bool RecvAll(SOCKET &sock, char*buffer, int size)
 	}
 	return true;
 }
-__declspec(thread)threadArg thdData;
-__declspec(thread)threadArg *thdarg;
+std::string sendInfo;
 __declspec(thread)RevInfo rinfo;
 __declspec(thread)UINT16 pBuffer[217088];
 __declspec(thread)BYTE pBuffer_color[8294400];
@@ -65,8 +56,7 @@ __declspec(thread)int erosion_size;
 __declspec(thread)int dilation_size;
 __declspec(thread)int ret_val;
 
-#define SERVER_PORT 4999
-#define MSG_BUF_SIZE 1024
+
 
 Server::Server()
 {
@@ -130,13 +120,27 @@ Server::~Server()
 }
 
 unsigned __stdcall CreateClientThread(LPVOID lpParameter);
-void Server::WaitForClient(std::string data)
+void Server::WaitForClient()
 {
+	cout << "***********************************************************" << endl;
+	cout << "[帮助]：【D】深度【C】彩色【B】人体索引【BCD】此三种         " << endl;
+	cout << "      【BD】深度+人体索引【CD】深度+彩色【BC】人体索引+彩色" << endl;
+	cout << "***********************************************************" << endl;
+	cout << "输入所需数据:";
+	while (true) {
+		std::cin >> sendInfo;
+		if ((sendInfo == "D") | (sendInfo == "B") | (sendInfo == "C") |
+			(sendInfo == "BCD") | (sendInfo == "BD") | (sendInfo == "CD") |
+			(sendInfo == "BC"))
+			break;
+		else
+			cout << "输入错误，请严格按照[帮助]中输入(区分大小写)" << endl;
+	}
+	
 	while (true)
 	{
-		thdData.sock_clt = ::accept(sock_svr, (SOCKADDR*)&addr_clt, &addr_len);
-		thdData.which_data = data;
-		if (thdData.sock_clt == INVALID_SOCKET)
+		sock_clt = ::accept(sock_svr, (SOCKADDR*)&addr_clt, &addr_len);
+		if (sock_clt == INVALID_SOCKET)
 		{
 			cerr << "Failed to accept client!Error code: " << ::WSAGetLastError() << "\n";
 			::WSACleanup();
@@ -145,7 +149,7 @@ void Server::WaitForClient(std::string data)
 		}
 		::InetNtop(addr_clt.sin_family, &addr_clt, (PWSTR)buf_ip, IP_BUF_SIZE);
 		cout << "A new client connected...IP address: " << buf_ip << ", port number: " << ::ntohs(addr_clt.sin_port) << endl;
-		h_thread = (HANDLE)_beginthreadex(nullptr, 0, CreateClientThread, (LPVOID)&thdData, 0, nullptr);
+		h_thread = (HANDLE)_beginthreadex(nullptr, 0, CreateClientThread, (LPVOID)sock_clt, 0, nullptr);
 		if (h_thread == NULL)
 		{
 			cerr << "Failed to create a new thread!Error code: " << ::WSAGetLastError() << "\n";
@@ -159,21 +163,23 @@ void Server::WaitForClient(std::string data)
 
 unsigned __stdcall CreateClientThread(LPVOID lpParameter)
 {
-	threadArg *thdarg = (threadArg*)lpParameter;
-	send(thdarg->sock_clt, (char*)&thdarg->which_data, sizeof(thdarg->which_data), 0);
-	string::size_type B_idx = thdarg->which_data.find("B");
-	string::size_type C_idx = thdarg->which_data.find("C");
-	string::size_type D_idx = thdarg->which_data.find("D");
+
+	SOCKET sock_clt = (SOCKET)lpParameter;
+	send(sock_clt, (char*)&sendInfo, sizeof(sendInfo), 0);
+	string::size_type B_idx = sendInfo.find("B");
+	string::size_type C_idx = sendInfo.find("C");
+	string::size_type D_idx = sendInfo.find("D");
 	while (true)
 	{
+
 #pragma region 接收深度数据
 		if (D_idx != string::npos)
 		{
 			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(thdarg->sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到:" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resdepth = RecvAll(thdarg->sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << resdepth << std::endl;
+			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
+			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
+			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
+			std::cout << "是否确实接收到（1为真）"<< resdepth << std::endl;
 			Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
 			cv::imshow("depth", depthImg);
 			if (waitKey(33) == VK_ESCAPE) break;
@@ -182,13 +188,15 @@ unsigned __stdcall CreateClientThread(LPVOID lpParameter)
 		}
 #pragma endregion
 
+
+
 #pragma region 接收彩色数据
 		if (C_idx != string::npos)
 		{
 			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(thdarg->sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到:" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL rescolor = RecvAll(thdarg->sock_clt, (char*)pBuffer_color, rinfo.pBuffer_size);
+			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
+			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
+			BOOL rescolor = RecvAll(sock_clt, (char*)pBuffer_color, rinfo.pBuffer_size);
 			std::cout << "是否确实接收到（1为真）" << rescolor << std::endl;
 			Mat colorImg(rinfo.height, rinfo.width, CV_8UC4);
 			colorImg.data = pBuffer_color;
@@ -201,13 +209,14 @@ unsigned __stdcall CreateClientThread(LPVOID lpParameter)
 		}
 #pragma endregion
 
+
 #pragma region 接收人体索引数据
-		if (B_idx != string::npos)
+		if (B_idx != string::npos) 
 		{
 			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(thdarg->sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
+			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
 			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resbodyindex = RecvAll(thdarg->sock_clt, (char*)pBuffer_bodyindex, rinfo.pBuffer_size);
+			BOOL resbodyindex = RecvAll(sock_clt, (char*)pBuffer_bodyindex, rinfo.pBuffer_size);
 			std::cout << "是否确实接收到（1为真）" << resbodyindex << std::endl;
 			Mat bodyindexImg = mytools.ConvertMat_8(pBuffer_bodyindex, rinfo.width, rinfo.height);
 			mytools.Reverse(bodyindexImg);
@@ -234,21 +243,25 @@ unsigned __stdcall CreateClientThread(LPVOID lpParameter)
 			else {
 				no_person = 0;
 			}
+
 			cv::imshow("bodyindex", bodyindexImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			bodyindexImg.release();
 			memset(pBuffer_bodyindex, 0, sizeof(pBuffer_bodyindex));
 		}
-#pragma endregion	
+#pragma endregion
+
 	}
 
-	int ret_val = ::shutdown(thdarg->sock_clt, SD_SEND);
+
+	int ret_val = ::shutdown(sock_clt, SD_SEND);
 	if (ret_val == SOCKET_ERROR)
 	{
 		cerr << "Failed to shutdown the client socket!Error code: " << ::GetLastError() << "\n";
-		::closesocket(thdarg->sock_clt);
+		::closesocket(sock_clt);
 		system("pause");
 		return 1;
 	}
 	return 0;
 }
+

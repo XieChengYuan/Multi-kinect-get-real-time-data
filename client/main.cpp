@@ -13,14 +13,13 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::flush;
-using std::string;
 using cv::Mat;
 using cv::waitKey;
+using std::string;
 #pragma endregion
 
 const char DEFAULT_PORT[] = "4999";
 const int SEND_BUF_SIZE = 256;
-const int RECV_BUF_SIZE = 256;
 
 struct SendInfo {
 	int height;
@@ -105,9 +104,8 @@ int main() {
 		return 1;
 	}
 	cout << "connect server successfully..." << endl;
-	cout << "start to receive instruction ..." << endl;
+	cout << "start to send data..." << endl;
 	freeaddrinfo(result);
-
 	std::string Recv;
 	memset(&Recv, 0, sizeof(Recv)); //清空结构体
 	recv(sock_client, (char*)&Recv, sizeof(Recv), 0);
@@ -117,7 +115,7 @@ int main() {
 
 	while (true)
 	{
-#pragma region 声明
+#pragma region 获取图像
 		IDepthFrame*       pDepthFrame = NULL;
 		IColorFrame*       pColorFrame = NULL;
 		IBodyIndexFrame*   pBodyIndexFrame = NULL;
@@ -125,9 +123,11 @@ int main() {
 		string::size_type C_idx = Recv.find("C");
 		string::size_type D_idx = Recv.find("D");
 #pragma endregion
+
+#pragma region 发送深度数据
 		if (D_idx != string::npos)
 		{
-#pragma region 获取并发送深度数据
+			//获取深度图像
 			while (pDepthFrame == NULL) {
 				//由于有时候获取不到，因此循环获取最近的帧
 				m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
@@ -144,11 +144,14 @@ int main() {
 			std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << resdepth << std::endl;
 			if (waitKey(33) == VK_ESCAPE) break;
 			pDepthFrame->Release();
-#pragma endregion
 		}
+#pragma endregion
+
+
+#pragma region 发送彩色数据
 		if (C_idx != string::npos)
 		{
-#pragma region 获取并发送彩色数据
+			//获取彩色图像
 			while (pColorFrame == NULL) {
 				//由于有时候获取不到，因此循环获取最近的帧
 				m_pColorFrameReader->AcquireLatestFrame(&pColorFrame);
@@ -169,11 +172,13 @@ int main() {
 			std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << rescolor << std::endl;
 			if (waitKey(33) == VK_ESCAPE) break;
 			pColorFrame->Release();
-#pragma endregion
 		}
+#pragma endregion
+
+#pragma region 发送人体索引数据
 		if (B_idx != string::npos)
 		{
-#pragma region 获取并发送人体索引数据
+			//获取人体索引
 			while (pBodyIndexFrame == NULL) {
 				//不想说第三遍了
 				m_pBodyIndexFrameReader->AcquireLatestFrame(&pBodyIndexFrame);
@@ -189,9 +194,8 @@ int main() {
 			std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << resbodyindex << std::endl;
 			if (waitKey(33) == VK_ESCAPE) break;
 			pBodyIndexFrame->Release();
-#pragma endregion
 		}
-
+#pragma endregion
 	}
 	if (m_pKinectSensor)
 	{

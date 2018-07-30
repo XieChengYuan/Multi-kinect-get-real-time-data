@@ -1,8 +1,7 @@
 # Multi-kinect-get-real-time-data
 
 
-环境配置：
-opencv kinect2.0
+相较于master多了可指定数据传输
 
                         
 目前：

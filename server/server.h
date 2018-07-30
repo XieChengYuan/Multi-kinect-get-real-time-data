@@ -26,3 +26,4 @@ private:
 	int addr_len;
 	char buf_ip[IP_BUF_SIZE];
 };
+

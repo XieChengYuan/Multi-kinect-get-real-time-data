@@ -1,7 +1,10 @@
 #include "server.h"
 #include <iostream>
 #include <WS2tcpip.h>
-#include <process.h>
+#include <opencv2/opencv.hpp>
+#include "opencv2/highgui.hpp"
+#include <Kinect.h> 
+#include <windows.h>  
 #include"Mytools.h"
 #pragma comment(lib, "ws2_32.lib")  
 
@@ -11,11 +14,6 @@ using cv::imshow;
 using std::cerr;
 using std::cout;
 using std::endl;
-using std::string;
-
-
-#define SERVER_PORT 4999
-#define MSG_BUF_SIZE 1024
 
 __declspec(thread)Mytools mytools;
 __declspec(thread)bool no_person;
@@ -39,8 +37,6 @@ bool RecvAll(SOCKET &sock, char*buffer, int size)
 	}
 	return true;
 }
-CRITICAL_SECTION cs;					//临界区对象，锁定theData
-std::string sendInfo;
 __declspec(thread)RevInfo rinfo;
 __declspec(thread)UINT16 pBuffer[217088];
 __declspec(thread)BYTE pBuffer_color[8294400];
@@ -58,6 +54,8 @@ __declspec(thread)int dilation_size;
 __declspec(thread)int ret_val;
 
 
+#define SERVER_PORT 4999
+#define MSG_BUF_SIZE 1024
 
 Server::Server()
 {
@@ -120,30 +118,9 @@ Server::~Server()
 	cout << "Socket closed..." << endl;
 }
 
-unsigned __stdcall CreateClientThread0(LPVOID lpParameter);
-unsigned int* tid0;
-unsigned __stdcall CreateClientThread1(LPVOID lpParameter);
-unsigned int* tid1;
-unsigned __stdcall CreateClientThread2(LPVOID lpParameter);
-unsigned int* tid2;
+DWORD WINAPI CreateClientThread(LPVOID lpParameter);
 void Server::WaitForClient()
 {
-	//InitializeCriticalSection(&cs);
-	cout << "***********************************************************" << endl;
-	cout << "[帮助]：【D】深度【C】彩色【B】人体索引【BCD】此三种         " << endl;
-	cout << "      【BD】深度+人体索引【CD】深度+彩色【BC】人体索引+彩色" << endl;
-	cout << "***********************************************************" << endl;
-	cout << "输入所需数据:";
-	while (true) {
-		std::cin >> sendInfo;
-		if ((sendInfo == "D") | (sendInfo == "B") | (sendInfo == "C") |
-			(sendInfo == "BCD") | (sendInfo == "BD") | (sendInfo == "CD") |
-			(sendInfo == "BC"))
-			break;
-		else
-			cout << "输入错误，请严格按照[帮助]中输入(区分大小写)" << endl;
-	}
-	int Flag = 0;
 	while (true)
 	{
 		sock_clt = ::accept(sock_svr, (SOCKADDR*)&addr_clt, &addr_len);
@@ -154,362 +131,101 @@ void Server::WaitForClient()
 			system("pause");
 			exit(1);
 		}
-		if (Flag == 0)
+		::InetNtop(addr_clt.sin_family, &addr_clt, (PWSTR)buf_ip, IP_BUF_SIZE);
+		cout << "A new client connected...IP address: " << buf_ip << ", port number: " << ::ntohs(addr_clt.sin_port) << endl;
+		h_thread = ::CreateThread(nullptr, 0, CreateClientThread, (LPVOID)sock_clt, 0, nullptr);
+		if (h_thread == NULL)
 		{
-			::InetNtop(addr_clt.sin_family, &addr_clt, (PWSTR)buf_ip, IP_BUF_SIZE);
-			cout << "A new client connected...IP address: " << buf_ip << ", port number: " << ::ntohs(addr_clt.sin_port) << endl;
-			h_thread0 = (HANDLE)_beginthreadex(nullptr, 0, CreateClientThread0, (LPVOID)sock_clt, 0,tid0);
-			if (h_thread0 == NULL)
-			{
-				cerr << "Failed to create a new thread!Error code: " << ::WSAGetLastError() << "\n";
-				::WSACleanup();
-				system("pause");
-				exit(1);
-			}
-			::CloseHandle(h_thread0);
-			
+			cerr << "Failed to create a new thread!Error code: " << ::WSAGetLastError() << "\n";
+			::WSACleanup();
+			system("pause");
+			exit(1);
 		}
-		else if (Flag == 1)
-		{
-			::InetNtop(addr_clt.sin_family, &addr_clt, (PWSTR)buf_ip, IP_BUF_SIZE);
-			cout << "A new client connected...IP address: " << buf_ip << ", port number: " << ::ntohs(addr_clt.sin_port) << endl;
-			h_thread1 = (HANDLE)_beginthreadex(nullptr, 0, CreateClientThread1, (LPVOID)sock_clt, 0, tid1);
-			if (h_thread1 == NULL)
-			{
-				cerr << "Failed to create a new thread!Error code: " << ::WSAGetLastError() << "\n";
-				::WSACleanup();
-				system("pause");
-				exit(1);
-			}
-			::CloseHandle(h_thread1);
-			
-		}
-		else
-		{
-			::InetNtop(addr_clt.sin_family, &addr_clt, (PWSTR)buf_ip, IP_BUF_SIZE);
-			cout << "A new client connected...IP address: " << buf_ip << ", port number: " << ::ntohs(addr_clt.sin_port) << endl;
-			h_thread2 = (HANDLE)_beginthreadex(nullptr, 0, CreateClientThread2, (LPVOID)sock_clt, 0, tid2);
-			if (h_thread2 == NULL)
-			{
-				cerr << "Failed to create a new thread!Error code: " << ::WSAGetLastError() << "\n";
-				::WSACleanup();
-				system("pause");
-				exit(1);
-			}
-			::CloseHandle(h_thread2);
-		}
-		cout << Flag << endl;
-		Flag++;
+		::CloseHandle(h_thread);
 	}
 }
 
-unsigned __stdcall CreateClientThread0(LPVOID lpParameter)
+DWORD WINAPI CreateClientThread(LPVOID lpParameter)
 {
-	//EnterCriticalSection(&cs);	//进入临界区
 
 	SOCKET sock_clt = (SOCKET)lpParameter;
-	send(sock_clt, (char*)&sendInfo, sizeof(sendInfo), 0);
-	string::size_type B_idx = sendInfo.find("B");
-	string::size_type C_idx = sendInfo.find("C");
-	string::size_type D_idx = sendInfo.find("D");
-	//LeaveCriticalSection(&cs);
 	while (true)
 	{
 
 #pragma region 接收深度数据
-		if (D_idx != string::npos)
-		{
-			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << resdepth << std::endl;
-			Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
-			cvNamedWindow("depth0");
-			cv::imshow("depth0", depthImg);
-			if (waitKey(33) == VK_ESCAPE) break;
-			depthImg.release();
-			memset(pBuffer, 0, sizeof(pBuffer));
-		}
+		memset(&rinfo, 0, sizeof(rinfo));//清空结构体
+		recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
+		std::cout << "从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
+		BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
+		std::cout << resdepth << std::endl;
+		Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
 #pragma endregion
 
 
 
 #pragma region 接收彩色数据
-		if (C_idx != string::npos)
-		{
-			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL rescolor = RecvAll(sock_clt, (char*)pBuffer_color, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << rescolor << std::endl;
-			Mat colorImg(rinfo.height, rinfo.width, CV_8UC4);
-			colorImg.data = pBuffer_color;
-			colorImg.step = rinfo.pBuffer_size / colorImg.rows;
-			std::cout << colorImg.step << std::endl;
-			cvNamedWindow("color0");
-			cv::imshow("color0", colorImg);
-			if (waitKey(33) == VK_ESCAPE) break;
-			colorImg.release();
-			memset(pBuffer_color, 0, sizeof(pBuffer_color));
-		}
+		memset(&rinfo, 0, sizeof(rinfo));//清空结构体
+		recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
+		std::cout << "从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
+		BOOL rescolor = RecvAll(sock_clt, (char*)pBuffer_color, rinfo.pBuffer_size);
+		std::cout << rescolor << std::endl;
+		Mat colorImg(rinfo.height, rinfo.width, CV_8UC4);
+		colorImg.data = pBuffer_color;
+		colorImg.step = rinfo.pBuffer_size / colorImg.rows;
+		std::cout << colorImg.step << std::endl;
 #pragma endregion
 
 
 #pragma region 接收人体索引数据
-		if (B_idx != string::npos)
-		{
-			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resbodyindex = RecvAll(sock_clt, (char*)pBuffer_bodyindex, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << resbodyindex << std::endl;
-			Mat bodyindexImg = mytools.ConvertMat_8(pBuffer_bodyindex, rinfo.width, rinfo.height);
-			mytools.Reverse(bodyindexImg);
-			int erosion_size = 3;
-			Mat erodeelement = getStructuringElement(MORPH_ELLIPSE,
-				Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-				Point(erosion_size, erosion_size));
-			int dilation_size = 3;
-			Mat dilateelement = getStructuringElement(MORPH_ELLIPSE,
-				Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-				Point(dilation_size, dilation_size));
-			cv::erode(bodyindexImg, bodyindexImg, erodeelement);
-			cv::dilate(bodyindexImg, bodyindexImg, dilateelement);
-			//printf("Begin Counting\n");
-			if (mytools.numOfNonZeroPixels(pBuffer_bodyindex, rinfo.width, rinfo.height) < 100) {
-				//没人就不算了
-				no_person = 1;
-				printf("No person!!\n");
+		memset(&rinfo, 0, sizeof(rinfo));//清空结构体
+		recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
+		std::cout << "从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
+		BOOL resbodyindex = RecvAll(sock_clt, (char*)pBuffer_bodyindex, rinfo.pBuffer_size);
+		std::cout << resbodyindex << std::endl;
+		Mat bodyindexImg = mytools.ConvertMat_8(pBuffer_bodyindex, rinfo.width, rinfo.height);
+		mytools.Reverse(bodyindexImg);
+		int erosion_size = 3;
+		Mat erodeelement = getStructuringElement(MORPH_ELLIPSE,
+			Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+			Point(erosion_size, erosion_size));
+		int dilation_size = 3;
+		Mat dilateelement = getStructuringElement(MORPH_ELLIPSE,
+			Size(2 * dilation_size + 1, 2 * dilation_size + 1),
+			Point(dilation_size, dilation_size));
+		cv::erode(bodyindexImg, bodyindexImg, erodeelement);
+		cv::dilate(bodyindexImg, bodyindexImg, dilateelement);
+		//printf("Begin Counting\n");
+		if (mytools.numOfNonZeroPixels(pBuffer_bodyindex, rinfo.width, rinfo.height) < 100) {
+			//没人就不算了
+			no_person = 1;
+			printf("No person!!\n");
 
-				//pBodyIndexFrame->Release();
-				//continue;
+			//pBodyIndexFrame->Release();
+			//continue;
 
-			}
-			else {
-				no_person = 0;
-			}
-			cvNamedWindow("bodyindex0");
-			cv::imshow("bodyindex0", bodyindexImg);
-			if (waitKey(33) == VK_ESCAPE) break;
-			bodyindexImg.release();
-			memset(pBuffer_bodyindex, 0, sizeof(pBuffer_bodyindex));
+		}
+		else {
+			no_person = 0;
 		}
 #pragma endregion
+
+#pragma	region 显示和清除
+		cv::imshow("depth", depthImg);
+		if (waitKey(33) == VK_ESCAPE) break;
+		cv::imshow("color", colorImg);
+		if (waitKey(33) == VK_ESCAPE) break;
+		cv::imshow("bodyindex", bodyindexImg);
+		if (waitKey(33) == VK_ESCAPE) break;
+		depthImg.release();
+		memset(pBuffer, 0, sizeof(pBuffer));
+		colorImg.release();
+		memset(pBuffer_color, 0, sizeof(pBuffer_color));
+		bodyindexImg.release();
+		memset(pBuffer_bodyindex, 0, sizeof(pBuffer_bodyindex));
+#pragma endregion
+		Sleep(300);
 	}
-
-
-	int ret_val = ::shutdown(sock_clt, SD_SEND);
-	if (ret_val == SOCKET_ERROR)
-	{
-		cerr << "Failed to shutdown the client socket!Error code: " << ::GetLastError() << "\n";
-		::closesocket(sock_clt);
-		system("pause");
-		return 1;
-	}
-	return 0;
-}
-unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
-{
-	//EnterCriticalSection(&cs);	//进入临界区
-
-	SOCKET sock_clt = (SOCKET)lpParameter;
-	send(sock_clt, (char*)&sendInfo, sizeof(sendInfo), 0);
-	string::size_type B_idx = sendInfo.find("B");
-	string::size_type C_idx = sendInfo.find("C");
-	string::size_type D_idx = sendInfo.find("D");
-	//LeaveCriticalSection(&cs);
-	while (true)
-	{
-
-#pragma region 接收深度数据
-		if (D_idx != string::npos)
-		{
-			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << resdepth << std::endl;
-			Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
-			cvNamedWindow("depth1");
-			cv::imshow("depth1", depthImg);
-			if (waitKey(33) == VK_ESCAPE) break;
-			depthImg.release();
-			memset(pBuffer, 0, sizeof(pBuffer));
-		}
-#pragma endregion
-
-
-
-#pragma region 接收彩色数据
-		if (C_idx != string::npos)
-		{
-			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL rescolor = RecvAll(sock_clt, (char*)pBuffer_color, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << rescolor << std::endl;
-			Mat colorImg(rinfo.height, rinfo.width, CV_8UC4);
-			colorImg.data = pBuffer_color;
-			colorImg.step = rinfo.pBuffer_size / colorImg.rows;
-			std::cout << colorImg.step << std::endl;
-			cvNamedWindow("color1");
-			cv::imshow("color1", colorImg);
-			if (waitKey(33) == VK_ESCAPE) break;
-			colorImg.release();
-			memset(pBuffer_color, 0, sizeof(pBuffer_color));
-		}
-#pragma endregion
-
-
-#pragma region 接收人体索引数据
-		if (B_idx != string::npos)
-		{
-			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resbodyindex = RecvAll(sock_clt, (char*)pBuffer_bodyindex, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << resbodyindex << std::endl;
-			Mat bodyindexImg = mytools.ConvertMat_8(pBuffer_bodyindex, rinfo.width, rinfo.height);
-			mytools.Reverse(bodyindexImg);
-			int erosion_size = 3;
-			Mat erodeelement = getStructuringElement(MORPH_ELLIPSE,
-				Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-				Point(erosion_size, erosion_size));
-			int dilation_size = 3;
-			Mat dilateelement = getStructuringElement(MORPH_ELLIPSE,
-				Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-				Point(dilation_size, dilation_size));
-			cv::erode(bodyindexImg, bodyindexImg, erodeelement);
-			cv::dilate(bodyindexImg, bodyindexImg, dilateelement);
-			//printf("Begin Counting\n");
-			if (mytools.numOfNonZeroPixels(pBuffer_bodyindex, rinfo.width, rinfo.height) < 100) {
-				//没人就不算了
-				no_person = 1;
-				printf("No person!!\n");
-
-				//pBodyIndexFrame->Release();
-				//continue;
-
-			}
-			else {
-				no_person = 0;
-			}
-			cvNamedWindow("bodyindex1");
-			cv::imshow("bodyindex1", bodyindexImg);
-			if (waitKey(33) == VK_ESCAPE) break;
-			bodyindexImg.release();
-			memset(pBuffer_bodyindex, 0, sizeof(pBuffer_bodyindex));
-		}
-#pragma endregion
-	}
-
-
-	int ret_val = ::shutdown(sock_clt, SD_SEND);
-	if (ret_val == SOCKET_ERROR)
-	{
-		cerr << "Failed to shutdown the client socket!Error code: " << ::GetLastError() << "\n";
-		::closesocket(sock_clt);
-		system("pause");
-		return 1;
-	}
-	return 0;
-}
-unsigned __stdcall CreateClientThread2(LPVOID lpParameter)
-{
-	//EnterCriticalSection(&cs);	//进入临界区
-
-	SOCKET sock_clt = (SOCKET)lpParameter;
-	send(sock_clt, (char*)&sendInfo, sizeof(sendInfo), 0);
-	string::size_type B_idx = sendInfo.find("B");
-	string::size_type C_idx = sendInfo.find("C");
-	string::size_type D_idx = sendInfo.find("D");
-	//LeaveCriticalSection(&cs);
-	while (true)
-	{
-
-#pragma region 接收深度数据
-		if (D_idx != string::npos)
-		{
-			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << resdepth << std::endl;
-			Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
-			cvNamedWindow("depth2");
-			cv::imshow("depth2", depthImg);
-			if (waitKey(33) == VK_ESCAPE) break;
-			depthImg.release();
-			memset(pBuffer, 0, sizeof(pBuffer));
-		}
-#pragma endregion
-
-
-
-#pragma region 接收彩色数据
-		if (C_idx != string::npos)
-		{
-			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL rescolor = RecvAll(sock_clt, (char*)pBuffer_color, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << rescolor << std::endl;
-			Mat colorImg(rinfo.height, rinfo.width, CV_8UC4);
-			colorImg.data = pBuffer_color;
-			colorImg.step = rinfo.pBuffer_size / colorImg.rows;
-			std::cout << colorImg.step << std::endl;
-			cvNamedWindow("color2");
-			cv::imshow("color2", colorImg);
-			if (waitKey(33) == VK_ESCAPE) break;
-			colorImg.release();
-			memset(pBuffer_color, 0, sizeof(pBuffer_color));
-		}
-#pragma endregion
-
-
-#pragma region 接收人体索引数据
-		if (B_idx != string::npos)
-		{
-			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
-			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
-			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resbodyindex = RecvAll(sock_clt, (char*)pBuffer_bodyindex, rinfo.pBuffer_size);
-			std::cout << "是否确实接收到（1为真）" << resbodyindex << std::endl;
-			Mat bodyindexImg = mytools.ConvertMat_8(pBuffer_bodyindex, rinfo.width, rinfo.height);
-			mytools.Reverse(bodyindexImg);
-			int erosion_size = 3;
-			Mat erodeelement = getStructuringElement(MORPH_ELLIPSE,
-				Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-				Point(erosion_size, erosion_size));
-			int dilation_size = 3;
-			Mat dilateelement = getStructuringElement(MORPH_ELLIPSE,
-				Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-				Point(dilation_size, dilation_size));
-			cv::erode(bodyindexImg, bodyindexImg, erodeelement);
-			cv::dilate(bodyindexImg, bodyindexImg, dilateelement);
-			//printf("Begin Counting\n");
-			if (mytools.numOfNonZeroPixels(pBuffer_bodyindex, rinfo.width, rinfo.height) < 100) {
-				//没人就不算了
-				no_person = 1;
-				printf("No person!!\n");
-
-				//pBodyIndexFrame->Release();
-				//continue;
-
-			}
-			else {
-				no_person = 0;
-			}
-			cvNamedWindow("bodyindex2");
-			cv::imshow("bodyindex2", bodyindexImg);
-			if (waitKey(33) == VK_ESCAPE) break;
-			bodyindexImg.release();
-			memset(pBuffer_bodyindex, 0, sizeof(pBuffer_bodyindex));
-		}
-#pragma endregion
-	}
-
+	
 
 	int ret_val = ::shutdown(sock_clt, SD_SEND);
 	if (ret_val == SOCKET_ERROR)

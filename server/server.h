@@ -19,10 +19,13 @@ private:
 	WSADATA wsa_data;
 	SOCKET sock_svr;
 	SOCKET sock_clt;
-	HANDLE h_thread;
+	HANDLE h_thread0;
+	HANDLE h_thread1;
+	HANDLE h_thread2;
 	SOCKADDR_IN addr_svr;
 	SOCKADDR_IN addr_clt;
 	int ret_val;
 	int addr_len;
 	char buf_ip[IP_BUF_SIZE];
 };
+

@@ -108,7 +108,11 @@ int main() {
 	cout << "start to send data..." << endl;
 	freeaddrinfo(result);
 	std::string Recv;
+<<<<<<< HEAD
 	memset(&Recv, 0, sizeof(Recv)); 
+=======
+	memset(&Recv, 0, sizeof(Recv)); //清空结构体
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 	recv(sock_client, (char*)&Recv, sizeof(Recv), 0);
 	cout << "接收到指令：" << Recv << endl;
 	cout << "开始发送数据" << endl;
@@ -122,7 +126,10 @@ int main() {
 		IColorFrame*       pColorFrame = NULL;
 		TIMESPAN*          Color_relativeTime = NULL;
 		IBodyIndexFrame*   pBodyIndexFrame = NULL;
+<<<<<<< HEAD
 		TIMESPAN*          BodyIndex_relativeTime = NULL;
+=======
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 		string::size_type B_idx = Recv.find("B");
 		string::size_type C_idx = Recv.find("C");
 		string::size_type D_idx = Recv.find("D");
@@ -133,6 +140,7 @@ int main() {
 		{
 			//获取深度图像
 			while (pDepthFrame == NULL) {
+<<<<<<< HEAD
 				m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
 			}
 			GetLocalTime(&local_time);
@@ -141,6 +149,13 @@ int main() {
 			//cout << Depth_relativeTime;
 			pDepthFrame->get_FrameDescription(&depthFrameDescription); //获取帧的像素信息（宽和高）
 			memset(&sinfo, 0, sizeof(sinfo));
+=======
+				//由于有时候获取不到，因此循环获取最近的帧
+				m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
+			}
+			pDepthFrame->get_FrameDescription(&depthFrameDescription); //获取帧的像素信息（宽和高）
+			memset(&sinfo, 0, sizeof(sinfo)); //清空结构体
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 			depthFrameDescription->get_Width(&sinfo.width);
 			depthFrameDescription->get_Height(&sinfo.height);
 			UINT16 *pBuffer_depth = NULL;
@@ -160,6 +175,7 @@ int main() {
 		{
 			//获取彩色图像
 			while (pColorFrame == NULL) {
+<<<<<<< HEAD
 				m_pColorFrameReader->AcquireLatestFrame(&pColorFrame);
 			}
 			GetLocalTime(&local_time);
@@ -168,6 +184,13 @@ int main() {
 			//cout << Color_relativeTime;
 			pColorFrame->get_FrameDescription(&colorFrameDescription);
 			memset(&sinfo, 0, sizeof(sinfo)); 
+=======
+				//由于有时候获取不到，因此循环获取最近的帧
+				m_pColorFrameReader->AcquireLatestFrame(&pColorFrame);
+			}
+			pColorFrame->get_FrameDescription(&colorFrameDescription);
+			memset(&sinfo, 0, sizeof(sinfo)); //清空结构体
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 			colorFrameDescription->get_Width(&sinfo.width);
 			colorFrameDescription->get_Height(&sinfo.height);
 			uchar *pBuffer_color = NULL;
@@ -190,6 +213,7 @@ int main() {
 		{
 			//获取人体索引
 			while (pBodyIndexFrame == NULL) {
+<<<<<<< HEAD
 				m_pBodyIndexFrameReader->AcquireLatestFrame(&pBodyIndexFrame);
 			}
 			GetLocalTime(&local_time);
@@ -198,6 +222,13 @@ int main() {
 			//cout << BodyIndex_relativeTime;
 			pBodyIndexFrame->get_FrameDescription(&bodyIndexFrameDescription);
 			memset(&sinfo, 0, sizeof(sinfo)); 
+=======
+				//不想说第三遍了
+				m_pBodyIndexFrameReader->AcquireLatestFrame(&pBodyIndexFrame);
+			}
+			pBodyIndexFrame->get_FrameDescription(&bodyIndexFrameDescription);
+			memset(&sinfo, 0, sizeof(sinfo)); //清空结构体
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 			bodyIndexFrameDescription->get_Width(&sinfo.width);
 			bodyIndexFrameDescription->get_Height(&sinfo.height);
 			BYTE *pBuffer_bodyIndex = NULL;

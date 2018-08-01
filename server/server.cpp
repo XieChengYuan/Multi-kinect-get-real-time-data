@@ -39,7 +39,10 @@ bool RecvAll(SOCKET &sock, char*buffer, int size)
 	}
 	return true;
 }
+<<<<<<< HEAD
 CRITICAL_SECTION cs;					//临界区对象，锁定theData
+=======
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 std::string sendInfo;
 __declspec(thread)RevInfo rinfo;
 __declspec(thread)UINT16 pBuffer[217088];
@@ -120,6 +123,7 @@ Server::~Server()
 	cout << "Socket closed..." << endl;
 }
 
+<<<<<<< HEAD
 unsigned __stdcall CreateClientThread0(LPVOID lpParameter);
 unsigned int* tid0;
 unsigned __stdcall CreateClientThread1(LPVOID lpParameter);
@@ -129,6 +133,11 @@ unsigned int* tid2;
 void Server::WaitForClient()
 {
 	//InitializeCriticalSection(&cs);
+=======
+unsigned __stdcall CreateClientThread(LPVOID lpParameter);
+void Server::WaitForClient()
+{
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 	cout << "***********************************************************" << endl;
 	cout << "[帮助]：【D】深度【C】彩色【B】人体索引【BCD】此三种         " << endl;
 	cout << "      【BD】深度+人体索引【CD】深度+彩色【BC】人体索引+彩色" << endl;
@@ -143,7 +152,11 @@ void Server::WaitForClient()
 		else
 			cout << "输入错误，请严格按照[帮助]中输入(区分大小写)" << endl;
 	}
+<<<<<<< HEAD
 	int Flag = 0;
+=======
+	
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 	while (true)
 	{
 		sock_clt = ::accept(sock_svr, (SOCKADDR*)&addr_clt, &addr_len);
@@ -154,7 +167,14 @@ void Server::WaitForClient()
 			system("pause");
 			exit(1);
 		}
+<<<<<<< HEAD
 		if (Flag == 0)
+=======
+		::InetNtop(addr_clt.sin_family, &addr_clt, (PWSTR)buf_ip, IP_BUF_SIZE);
+		cout << "A new client connected...IP address: " << buf_ip << ", port number: " << ::ntohs(addr_clt.sin_port) << endl;
+		h_thread = (HANDLE)_beginthreadex(nullptr, 0, CreateClientThread, (LPVOID)sock_clt, 0, nullptr);
+		if (h_thread == NULL)
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 		{
 			::InetNtop(addr_clt.sin_family, &addr_clt, (PWSTR)buf_ip, IP_BUF_SIZE);
 			cout << "A new client connected...IP address: " << buf_ip << ", port number: " << ::ntohs(addr_clt.sin_port) << endl;
@@ -203,6 +223,7 @@ void Server::WaitForClient()
 	}
 }
 
+<<<<<<< HEAD
 unsigned __stdcall CreateClientThread0(LPVOID lpParameter)
 {
 	//EnterCriticalSection(&cs);	//进入临界区
@@ -310,6 +331,9 @@ unsigned __stdcall CreateClientThread0(LPVOID lpParameter)
 	return 0;
 }
 unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
+=======
+unsigned __stdcall CreateClientThread(LPVOID lpParameter)
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 {
 	//EnterCriticalSection(&cs);	//进入临界区
 
@@ -318,7 +342,10 @@ unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
 	string::size_type B_idx = sendInfo.find("B");
 	string::size_type C_idx = sendInfo.find("C");
 	string::size_type D_idx = sendInfo.find("D");
+<<<<<<< HEAD
 	//LeaveCriticalSection(&cs);
+=======
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 	while (true)
 	{
 
@@ -329,10 +356,16 @@ unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
 			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
 			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
 			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
+<<<<<<< HEAD
 			std::cout << "是否确实接收到（1为真）" << resdepth << std::endl;
 			Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
 			cvNamedWindow("depth1");
 			cv::imshow("depth1", depthImg);
+=======
+			std::cout << "是否确实接收到（1为真）"<< resdepth << std::endl;
+			Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
+			cv::imshow("depth", depthImg);
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 			if (waitKey(33) == VK_ESCAPE) break;
 			depthImg.release();
 			memset(pBuffer, 0, sizeof(pBuffer));
@@ -353,8 +386,12 @@ unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
 			colorImg.data = pBuffer_color;
 			colorImg.step = rinfo.pBuffer_size / colorImg.rows;
 			std::cout << colorImg.step << std::endl;
+<<<<<<< HEAD
 			cvNamedWindow("color1");
 			cv::imshow("color1", colorImg);
+=======
+			cv::imshow("color", colorImg);
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 			if (waitKey(33) == VK_ESCAPE) break;
 			colorImg.release();
 			memset(pBuffer_color, 0, sizeof(pBuffer_color));
@@ -363,7 +400,11 @@ unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
 
 
 #pragma region 接收人体索引数据
+<<<<<<< HEAD
 		if (B_idx != string::npos)
+=======
+		if (B_idx != string::npos) 
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 		{
 			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
 			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
@@ -387,14 +428,22 @@ unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
 				//没人就不算了
 				no_person = 1;
 				printf("No person!!\n");
+<<<<<<< HEAD
 
 				//pBodyIndexFrame->Release();
 				//continue;
 
+=======
+
+				//pBodyIndexFrame->Release();
+				//continue;
+
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 			}
 			else {
 				no_person = 0;
 			}
+<<<<<<< HEAD
 			cvNamedWindow("bodyindex1");
 			cv::imshow("bodyindex1", bodyindexImg);
 			if (waitKey(33) == VK_ESCAPE) break;
@@ -508,6 +557,16 @@ unsigned __stdcall CreateClientThread2(LPVOID lpParameter)
 			memset(pBuffer_bodyindex, 0, sizeof(pBuffer_bodyindex));
 		}
 #pragma endregion
+=======
+
+			cv::imshow("bodyindex", bodyindexImg);
+			if (waitKey(33) == VK_ESCAPE) break;
+			bodyindexImg.release();
+			memset(pBuffer_bodyindex, 0, sizeof(pBuffer_bodyindex));
+		}
+#pragma endregion
+
+>>>>>>> cb0e88a0044eb169dae298f1ab00698b2012325b
 	}
 
 
@@ -521,3 +580,4 @@ unsigned __stdcall CreateClientThread2(LPVOID lpParameter)
 	}
 	return 0;
 }
+

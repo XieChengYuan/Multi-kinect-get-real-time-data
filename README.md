@@ -1,6 +1,7 @@
 # Multi-kinect-get-real-time-data
 
-   可同时显示分支为最新代码                     
+
+
 目前：
 TCP流式传输；
 每有一个客户端接入开一个线程，最多三个；

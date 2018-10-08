@@ -147,7 +147,7 @@ int main() {
 			//获取图像像素个数和指向图像的指针
 			pDepthFrame->AccessUnderlyingBuffer(&sinfo.pBuffer_size, &pBuffer_depth);
 			send(sock_client, (char*)&sinfo, sizeof(sinfo), 0);
-			int resdepth = send(sock_client, (char*)pBuffer_depth, sinfo.pBuffer_size, 0);
+			int resdepth = send(sock_client, (char*)pBuffer_depth, 2*sinfo.pBuffer_size, 0);
 			std::cout << "已发送：" << sinfo.height << " " << sinfo.width << " " << resdepth << std::endl;
 			if (waitKey(33) == VK_ESCAPE) break;
 			pDepthFrame->Release();

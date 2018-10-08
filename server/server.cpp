@@ -158,7 +158,7 @@ void Server::WaitForClient()
 		{
 			::InetNtop(addr_clt.sin_family, &addr_clt, (PWSTR)buf_ip, IP_BUF_SIZE);
 			cout << "A new client connected...IP address: " << buf_ip << ", port number: " << ::ntohs(addr_clt.sin_port) << endl;
-			h_thread0 = (HANDLE)_beginthreadex(nullptr, 0, CreateClientThread0, (LPVOID)sock_clt, 0,tid0);
+			h_thread0 = (HANDLE)_beginthreadex(nullptr, 0, CreateClientThread0, (LPVOID)sock_clt, 0, tid0);
 			if (h_thread0 == NULL)
 			{
 				cerr << "Failed to create a new thread!Error code: " << ::WSAGetLastError() << "\n";
@@ -167,7 +167,7 @@ void Server::WaitForClient()
 				exit(1);
 			}
 			::CloseHandle(h_thread0);
-			
+
 		}
 		else if (Flag == 1)
 		{
@@ -182,7 +182,7 @@ void Server::WaitForClient()
 				exit(1);
 			}
 			::CloseHandle(h_thread1);
-			
+
 		}
 		else
 		{
@@ -222,10 +222,10 @@ unsigned __stdcall CreateClientThread0(LPVOID lpParameter)
 			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
 			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
 			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
+			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, 2*rinfo.pBuffer_size);
 			std::cout << "是否确实接收到（1为真）" << resdepth << std::endl;
-			Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
-			cvNamedWindow("depth0");
+			Mat depthImg = mytools.ConvertMat_16(pBuffer, rinfo.width, rinfo.height);
+			cvNamedWindow("depth0",WINDOW_NORMAL);
 			cv::imshow("depth0", depthImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			depthImg.release();
@@ -247,7 +247,7 @@ unsigned __stdcall CreateClientThread0(LPVOID lpParameter)
 			colorImg.data = pBuffer_color;
 			colorImg.step = rinfo.pBuffer_size / colorImg.rows;
 			std::cout << colorImg.step << std::endl;
-			cvNamedWindow("color0");
+			cvNamedWindow("color0",WINDOW_NORMAL);
 			cv::imshow("color0", colorImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			colorImg.release();
@@ -289,7 +289,7 @@ unsigned __stdcall CreateClientThread0(LPVOID lpParameter)
 			else {
 				no_person = 0;
 			}
-			cvNamedWindow("bodyindex0");
+			cvNamedWindow("bodyindex0", WINDOW_NORMAL);
 			cv::imshow("bodyindex0", bodyindexImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			bodyindexImg.release();
@@ -328,10 +328,10 @@ unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
 			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
 			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
 			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
+			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, 2*rinfo.pBuffer_size);
 			std::cout << "是否确实接收到（1为真）" << resdepth << std::endl;
 			Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
-			cvNamedWindow("depth1");
+			cvNamedWindow("depth1", WINDOW_NORMAL);
 			cv::imshow("depth1", depthImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			depthImg.release();
@@ -353,7 +353,7 @@ unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
 			colorImg.data = pBuffer_color;
 			colorImg.step = rinfo.pBuffer_size / colorImg.rows;
 			std::cout << colorImg.step << std::endl;
-			cvNamedWindow("color1");
+			cvNamedWindow("color1", WINDOW_NORMAL);
 			cv::imshow("color1", colorImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			colorImg.release();
@@ -395,7 +395,7 @@ unsigned __stdcall CreateClientThread1(LPVOID lpParameter)
 			else {
 				no_person = 0;
 			}
-			cvNamedWindow("bodyindex1");
+			cvNamedWindow("bodyindex1", WINDOW_NORMAL);
 			cv::imshow("bodyindex1", bodyindexImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			bodyindexImg.release();
@@ -434,10 +434,10 @@ unsigned __stdcall CreateClientThread2(LPVOID lpParameter)
 			memset(&rinfo, 0, sizeof(rinfo));//清空结构体
 			recv(sock_clt, (char*)&rinfo, sizeof(rinfo), 0); // 接收端的数据 
 			std::cout << GetCurrentThreadId() << ":从客户端接收到：" << rinfo.height << " " << rinfo.width << " " << rinfo.pBuffer_size << std::endl;
-			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, rinfo.pBuffer_size);
+			BOOL resdepth = RecvAll(sock_clt, (char*)pBuffer, 2*rinfo.pBuffer_size);
 			std::cout << "是否确实接收到（1为真）" << resdepth << std::endl;
 			Mat depthImg = mytools.ConvertMat_8(pBuffer, rinfo.width, rinfo.height);
-			cvNamedWindow("depth2");
+			cvNamedWindow("depth2", WINDOW_NORMAL);
 			cv::imshow("depth2", depthImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			depthImg.release();
@@ -459,7 +459,7 @@ unsigned __stdcall CreateClientThread2(LPVOID lpParameter)
 			colorImg.data = pBuffer_color;
 			colorImg.step = rinfo.pBuffer_size / colorImg.rows;
 			std::cout << colorImg.step << std::endl;
-			cvNamedWindow("color2");
+			cvNamedWindow("color2", WINDOW_NORMAL);
 			cv::imshow("color2", colorImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			colorImg.release();
@@ -501,7 +501,7 @@ unsigned __stdcall CreateClientThread2(LPVOID lpParameter)
 			else {
 				no_person = 0;
 			}
-			cvNamedWindow("bodyindex2");
+			cvNamedWindow("bodyindex2", WINDOW_NORMAL);
 			cv::imshow("bodyindex2", bodyindexImg);
 			if (waitKey(33) == VK_ESCAPE) break;
 			bodyindexImg.release();
